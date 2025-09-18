@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: p3-service
+  namespace: ticketing-system
+  labels:
+    app: p3-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: p3-service
+  template:
+    metadata:
+      labels:
+        app: p3-service
+    spec:
+      serviceAccountName: ticketing-system-service-account
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: p3-service
+            topologyKey: "kubernetes.io/hostname"
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: "kubernetes.io/hostname"
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app: p3-service
+      containers:
+      - name: p3-service
+        image: public.ecr.aws/i3m8z0o9/abdulquadri/p3:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 5000
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "250m"
+            memory: "256Mi"
+        env:
+        - name: AWS_DEFAULT_REGION
+          valueFrom:
+            configMapKeyRef:
+              name: ticketing-system-config
+              key: AWS_DEFAULT_REGION
+        - name: TOPIC_ARN
+          valueFrom:
+            secretKeyRef:
+              name: p3-secrets
+              key: TOPIC_ARN
+        - name: SQS_QUEUE_URL_P3
+          valueFrom:
+            configMapKeyRef:
+              name: ticketing-system-config
+              key: SQS_QUEUE_URL_P3
